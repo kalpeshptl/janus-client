@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const WebSocket = require('ws');
+const WebSocket = require('isomorphic-ws')
 const EventEmitter = require('events').EventEmitter;
 const Transaction = require('../transaction').Transaction;
 const logger = require('debug-logger')('janus:client');
@@ -96,10 +96,10 @@ class Client {
                 { handshakeTimeout: this.handshakeTimeout } :
                 undefined;
             this.webSocket = new this.WebSocket(this.url, this.protocol, opts);
-            this.webSocket.on(WebSocketEvent.open, ()=>{ this.open(); });
-            this.webSocket.on(WebSocketEvent.close, ()=>{ this.close(); });
-            this.webSocket.on(WebSocketEvent.message, (message)=>{ this.message(message); });
-            this.webSocket.on(WebSocketEvent.error, (err)=>{ this.error(err); });
+            this.webSocket.onopen = ()=>{ this.open(); };
+            this.webSocket.onclose = ()=>{ this.close(); };
+            this.webSocket.onmessage = (message)=>{ this.message(_.get(message,"data",null))};
+            this.webSocket.onerror = (err)=>{ this.error(err); };
             this.startConnectionTimeout();
         }
     }
@@ -130,10 +130,10 @@ class Client {
         let closeHandler = ()=>{
             this.stopConnectionTimeout();
             if(this.webSocket !== null) {
-                this.webSocket.removeAllListeners(WebSocketEvent.open);
-                this.webSocket.removeAllListeners(WebSocketEvent.message);
-                this.webSocket.removeAllListeners(WebSocketEvent.error);
-                this.webSocket.removeAllListeners(WebSocketEvent.close);
+                // this.webSocket.removeAllListeners(WebSocketEvent.open);
+                // this.webSocket.removeAllListeners(WebSocketEvent.message);
+                // this.webSocket.removeAllListeners(WebSocketEvent.error);
+                // this.webSocket.removeAllListeners(WebSocketEvent.close);
                 this.webSocket = null;
             }
             if(this.lastConnectionEvent === ClientEvent.connected) {
@@ -146,8 +146,8 @@ class Client {
         };
 
         if(this.isConnected() || this.isConnecting()) {
-            this.webSocket.removeAllListeners('close');
-            this.webSocket.on('close', () => closeHandler());
+            // this.webSocket.removeAllListeners('close');
+            this.webSocket.onclose = () => closeHandler();
             this.webSocket.close();
         } else {
             closeHandler();
